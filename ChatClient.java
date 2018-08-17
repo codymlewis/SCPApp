@@ -28,19 +28,17 @@ public class ChatClient {
      */
     public void run(String args[]) {
         try {
-            String hostName = args[0];
-            int port = Integer.parseInt(args[1]);
+            String hostName = args.length > 0 ? args[0] : "localhost";
+            int port = args.length > 1 ? Integer.parseInt(args[1]) : 3400;
             System.out.println(String.format("Connecting to %s:%d", hostName, port));
-            if(connectToServer(hostName, port)) {
-                System.out.println("Connected to server");
-                Scanner console = new Scanner(System.in);
-                System.out.print("Input a username: ");
-                String username = console.next();
-                scpConnect(hostName, port, username);
-                System.out.println(in.readLine());
-            } else {
-                System.err.println("Failed to connect to the server");
-            }
+            connectToServer(hostName, port);
+            System.out.println("Connected to server");
+            Scanner console = new Scanner(System.in);
+            System.out.print("Input a username: ");
+            String username = console.next();
+            scpConnect(hostName, port, username);
+            System.out.println(in.readLine());
+            console.close();
         } catch(UnknownHostException uhe) {
             System.err.println("Specified host does not exist");
         } catch(IOException ioe) {
@@ -68,7 +66,7 @@ public class ChatClient {
      */
     private boolean scpConnect(String hostName, int port, String username) {
         String connectionString = String.format(
-            "SCP CONNECT\nSERVERADDRESS %s\nSERVERPORT %d\nREQUESTCREATED %d\nUSERNAME %s\nSCP END",
+            "SCP CONNECT\nSERVERADDRESS %s\nSERVERPORT %d\nREQUESTCREATED %d\nUSERNAME \"%s\"\nSCP END",
             hostName, port, Instant.now().getEpochSecond(), username
         );
         out.println(connectionString);

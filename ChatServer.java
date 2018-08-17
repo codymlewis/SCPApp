@@ -20,6 +20,8 @@ public class ChatServer {
     private Socket cliSocket;
     private PrintWriter out;
     private BufferedReader in;
+    InetAddress hostInetAddress;
+    int port;
     private static final int BACKLOG = 1; // Max length for queue of messages
     public static void main(String args[]) {
         ChatServer cs = new ChatServer();
@@ -32,20 +34,38 @@ public class ChatServer {
      */
     public void run(String args[]) {
         try {
-            InetAddress hostInetAddress = args.length > 0 ? InetAddress.getLocalHost() : InetAddress.getLocalHost();
-            int port = args.length > 1 ? Integer.parseInt(args[1]) : 3400;
+            hostInetAddress = args.length > 0 ? InetAddress.getLocalHost() : InetAddress.getLocalHost();
+            port = args.length > 1 ? Integer.parseInt(args[1]) : 3400;
             String welcomeMessage = args.length > 2 ? args[2] : "Welcome to SCP";
             System.out.println(String.format("Starting server on %s:%d", hostInetAddress.getHostAddress(), port));
             startSocket(hostInetAddress, port);
             System.out.println("Started server");
+            hostConnection(welcomeMessage);
+        } catch(IOException ioe)  {
+            System.err.println("Input/Output error");
+        }
+    }
+    /**
+     * Host a client connectio
+     * @param welcomeMessage the welcome message sent to the client
+     */
+    private void hostConnection(String welcomeMessage) throws IOException {
+        boolean disconnect = false;
+        while(!disconnect) {
             System.out.println("Waiting for client to connect");
             acceptClient();
             System.out.println("Client successfully connected");
             System.out.println("Waiting for client to SCP connect");
             String username = clientConnect();
+            if(username == "") {
+                cliSocket.close();
+                System.out.println("Rejected client for time differential greater than 5");
+                continue;
+            }
+            scpAccept(username);
             out.println(welcomeMessage);
-        } catch(IOException ioe)  {
-            System.err.println("Input/Output error");
+            System.out.println(String.format("User %s has connected to SCP", username));
+            disconnect = true;
         }
     }
     /**
@@ -70,7 +90,7 @@ public class ChatServer {
     }
     /**
      * Recieve a scp connection
-     * @return true on packet reception and parse
+     * @return Client's username
      */
     private String clientConnect() throws IOException {
         String inLine;
@@ -84,21 +104,47 @@ public class ChatServer {
                     isScpConnect = true;
                 }
             } else {
-                if(inLine.indexOf("SERVERADDRESS") > -1) {
-                    // Validate
-                } else if(inLine.indexOf("SERVERPORT") > -1) {
-                    // Validate
-                } else if(inLine.indexOf("REQUESTCREATED") > -1) {
+                if(inLine.indexOf("REQUESTCREATED") > -1) {
                     int requestTime = Integer.parseInt(inLine.substring(inLine.indexOf(" ") + 1));
-                    int currentTime = (int)Instant.now().getEpochSecond();
-                    if(!(requestTime >= currentTime - 5 && requestTime <= currentTime + 5)) {
-                        throw new IOException();
+                    int timeDiff = findTimeDiff(requestTime);
+                    if(timeDiff > 5) {
+                        reject(timeDiff);
+                        break;
                     }
                 } else if(inLine.indexOf("USERNAME") > -1) {
-                    username = inLine.substring(inLine.indexOf(" "));
+                    username = inLine.substring(inLine.indexOf(" ") + 1);
                 }
             }
         }
         return username;
+    }
+    /**
+     * Find passes epoch time from specified time
+     * @param otherTime specified time
+     * @return The difference in times
+     */
+    private int findTimeDiff(int otherTime) {
+        return Math.abs((int)Instant.now().getEpochSecond() - otherTime);
+    }
+    /**
+     * Reject client for taking too long
+     * @param timeDiff Difference in time of client request to server processing it
+     */
+    private void reject(int timeDiff) {
+        out.println(String.format(
+                "SCP REJECT\nTIMEDIFFERENTIAL %d\nREMOTEADDRESS %s\nSCP END",
+                timeDiff, cliSocket.getLocalAddress().getHostAddress()
+            )
+        );
+    }
+    /**
+     * Send a SCP connect message to the client
+     * @param username user specified name
+     */
+    private void scpAccept(String username) {
+        out.println(String.format(
+                "SCP ACCEPT\nUSERNAME %s\nCLIENTADDRESS %s\nCLIENTPORT %d\nSCP END"
+            )
+        );
     }
 }
