@@ -16,6 +16,7 @@ import java.net.UnknownHostException;
  * @since 2018-08-10
  */
 public class ChatServer {
+    private SCP scp = new SCP();
     private ServerSocket serverSocket;
     private Socket cliSocket;
     private PrintWriter out;
@@ -46,7 +47,7 @@ public class ChatServer {
         }
     }
     /**
-     * Host a client connectio
+     * Host a client connection
      * @param welcomeMessage the welcome message sent to the client
      */
     private void hostConnection(String welcomeMessage) throws IOException {
@@ -63,8 +64,10 @@ public class ChatServer {
                 continue;
             }
             scpAccept(username);
-            out.println(welcomeMessage);
-            System.out.println(String.format("User %s has connected to SCP", username));
+            if(acknowledged(username)) {
+                out.println(welcomeMessage);
+                System.out.println(String.format("User %s has connected to SCP", username));
+            }
             disconnect = true;
         }
     }
@@ -131,20 +134,27 @@ public class ChatServer {
      * @param timeDiff Difference in time of client request to server processing it
      */
     private void reject(int timeDiff) {
-        out.println(String.format(
-                "SCP REJECT\nTIMEDIFFERENTIAL %d\nREMOTEADDRESS %s\nSCP END",
-                timeDiff, cliSocket.getLocalAddress().getHostAddress()
-            )
-        );
+        out.println(scp.reject(timeDiff, cliSocket.getLocalAddress().getHostAddress()));
     }
     /**
      * Send a SCP connect message to the client
      * @param username user specified name
      */
     private void scpAccept(String username) {
-        out.println(String.format(
-                "SCP ACCEPT\nUSERNAME %s\nCLIENTADDRESS %s\nCLIENTPORT %d\nSCP END"
-            )
-        );
+        out.println(scp.accept(username, "127.0.0.1", 3400));
+    }
+    private boolean acknowledged(String username) throws IOException {
+        String inLine;
+        boolean firstLine = true;
+        while((inLine = in.readLine()).compareTo("SCP END") != 0) {
+            if(firstLine) {
+                if(inLine.indexOf("SCP ACKNOWLEDGE") > -1) {
+                    firstLine = false;
+                } else {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 }

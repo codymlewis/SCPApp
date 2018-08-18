@@ -1,5 +1,4 @@
 import java.util.Scanner;
-import java.time.Instant;
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.io.InputStreamReader;
@@ -14,6 +13,7 @@ import java.io.IOException;
  * @since 2018-08-10
  */
 public class ChatClient {
+    private SCP scp = new SCP();
     private Socket socket;
     private PrintWriter out;
     private BufferedReader in;
@@ -64,12 +64,35 @@ public class ChatClient {
      * @param username client specified username
      * @return true on packet send
      */
-    private boolean scpConnect(String hostName, int port, String username) {
-        String connectionString = String.format(
-            "SCP CONNECT\nSERVERADDRESS %s\nSERVERPORT %d\nREQUESTCREATED %d\nUSERNAME \"%s\"\nSCP END",
-            hostName, port, Instant.now().getEpochSecond(), username
-        );
+    private boolean scpConnect(String hostName, int port, String username) throws IOException {
+        String connectionString = scp.connect(username, hostName, port);
         out.println(connectionString);
+        if(scpDecide(username)) {
+            scpAknowledge(username);
+            return true;
+        }
+        return false;
+    }
+    private boolean scpDecide(String username) throws IOException {
+        String inLine;
+        boolean accept = false;
+        while((inLine = in.readLine()).compareTo("SCP END") != 0) {
+            if(!accept) {
+                if(inLine.indexOf("SCP ACCEPT") > -1) {
+                    accept = true;
+                } else {
+                    throw new IOException();
+                }
+            }
+            if(inLine.indexOf("USERNAME") > -1) {
+                if(inLine.indexOf(username) == -1) {
+                    return false;
+                }
+            }
+        }
         return true;
+    }
+    private void scpAknowledge(String username) {
+        out.println(scp.acknowledge(username, "127.0.0.1", 3400));
     }
 }
