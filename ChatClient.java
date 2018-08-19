@@ -37,12 +37,25 @@ public class ChatClient {
             System.out.print("Input a username: ");
             String username = console.next();
             scpConnect(hostName, port, username);
-            System.out.println(in.readLine());
+            System.out.println("Connected to SCP");
+            String message;
+            while(true) {
+                System.out.print(recieveMessage());
+                System.out.print("send a message: ");
+                message = console.next();
+                if(message == "DISCONNECT") {
+                    break;
+                }
+                out.println(scp.message("127.0.0.1", 3400, message));
+                System.out.println("Server is typing...");
+            }
             console.close();
+        } catch(SCPException scpe) {
+            System.err.println(scpe.getMessage());
         } catch(UnknownHostException uhe) {
-            System.err.println("Specified host does not exist");
+            System.err.println(uhe.getMessage());
         } catch(IOException ioe) {
-            System.err.println("Input/Output error");
+            System.err.println(ioe.getMessage());
         }
     }
     /**
@@ -64,35 +77,31 @@ public class ChatClient {
      * @param username client specified username
      * @return true on packet send
      */
-    private boolean scpConnect(String hostName, int port, String username) throws IOException {
+    private boolean scpConnect(String hostName, int port, String username) throws SCPException, IOException {
         String connectionString = scp.connect(username, hostName, port);
         out.println(connectionString);
         if(scpDecide(username)) {
-            scpAknowledge(username);
+            scpAcknowledge(username);
             return true;
         }
         return false;
     }
-    private boolean scpDecide(String username) throws IOException {
-        String inLine;
-        boolean accept = false;
+    private boolean scpDecide(String username) throws SCPException, IOException {
+        String inLine, packet = "";
         while((inLine = in.readLine()).compareTo("SCP END") != 0) {
-            if(!accept) {
-                if(inLine.indexOf("SCP ACCEPT") > -1) {
-                    accept = true;
-                } else {
-                    throw new IOException();
-                }
-            }
-            if(inLine.indexOf("USERNAME") > -1) {
-                if(inLine.indexOf(username) == -1) {
-                    return false;
-                }
-            }
+            packet += inLine + "\n";
         }
-        return true;
+        return scp.parseAccept(packet, username);
     }
-    private void scpAknowledge(String username) {
+    private void scpAcknowledge(String username) {
         out.println(scp.acknowledge(username, "127.0.0.1", 3400));
+    }
+    private String recieveMessage() throws SCPException, IOException {
+        String packet = "";
+        String line = "";
+        while((line = in.readLine()).compareTo("SCP END") != 0) {
+            packet += line + "\n";
+        }
+        return scp.parseMessage(packet, "127.0.0.1", 3400);
     }
 }

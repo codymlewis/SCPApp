@@ -7,8 +7,21 @@
  */
 public class SCPException extends Exception {
     static final long serialVersionUID = 1L;
+    /**
+     * Default constructor
+     */
     public SCPException() {}
-    public SCPException(String message) {
-        super(message);
+    /**
+     * Input constructor
+     * @param message the exception's message
+     */
+    public SCPException(String message) { super(message); }
+    /**
+     * Sentence input constructor
+     * @param expected the String that was Expected
+     * @param received the String that was recieved
+     */
+    public SCPException(String expected, String received) {
+        super("Expected " + expected + " but got " + received);
     }
 }

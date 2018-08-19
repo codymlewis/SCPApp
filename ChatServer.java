@@ -21,8 +21,9 @@ public class ChatServer {
     private Socket cliSocket;
     private PrintWriter out;
     private BufferedReader in;
-    InetAddress hostInetAddress;
-    int port;
+    private InetAddress hostInetAddress;
+    private int port;
+    private String username;
     private static final int BACKLOG = 1; // Max length for queue of messages
     public static void main(String args[]) {
         ChatServer cs = new ChatServer();
@@ -39,36 +40,46 @@ public class ChatServer {
             port = args.length > 1 ? Integer.parseInt(args[1]) : 3400;
             String welcomeMessage = args.length > 2 ? args[2] : "Welcome to SCP";
             System.out.println(String.format("Starting server on %s:%d", hostInetAddress.getHostAddress(), port));
-            startSocket(hostInetAddress, port);
+            startSocket();
             System.out.println("Started server");
             hostConnection(welcomeMessage);
+        } catch(SCPException scpe) {
+            System.err.println(scpe.getMessage());
         } catch(IOException ioe)  {
-            System.err.println("Input/Output error");
+            System.err.println(ioe.getMessage());
         }
     }
     /**
      * Host a client connection
      * @param welcomeMessage the welcome message sent to the client
      */
-    private void hostConnection(String welcomeMessage) throws IOException {
-        boolean disconnect = false;
-        while(!disconnect) {
-            System.out.println("Waiting for client to connect");
-            acceptClient();
-            System.out.println("Client successfully connected");
-            System.out.println("Waiting for client to SCP connect");
-            String username = clientConnect();
-            if(username == "") {
-                cliSocket.close();
-                System.out.println("Rejected client for time differential greater than 5");
-                continue;
+    private void hostConnection(String welcomeMessage) throws SCPException, IOException {
+        System.out.println("Waiting for client to connect");
+        acceptClient();
+        System.out.println("Client successfully connected");
+        System.out.println("Waiting for client to SCP connect");
+        username = clientConnect();
+        username = username.substring(1, username.length() - 1); // remove quotes
+        if(username == "") {
+            cliSocket.close();
+            System.out.println("Rejected client for time differential greater than 5");
+        }
+        scpAccept();
+        if(acknowledged()) {
+            System.out.println(String.format("User %s has connected to SCP", username));
+            Scanner console = new Scanner(System.in);
+            String message = welcomeMessage;
+            while(true) {
+                out.println(scp.message(hostInetAddress.getHostAddress(), port, message));
+                System.out.println(String.format("%s is typing...", username));
+                System.out.print(recieveMessage());
+                System.out.print("Send a message: ");
+                message = console.next();
+                if(message == "DISCONNECT") {
+                    break;
+                }
             }
-            scpAccept(username);
-            if(acknowledged(username)) {
-                out.println(welcomeMessage);
-                System.out.println(String.format("User %s has connected to SCP", username));
-            }
-            disconnect = true;
+            console.close();
         }
     }
     /**
@@ -77,8 +88,8 @@ public class ChatServer {
      * @param port The port to run the server on
      * @return True on successful start
      */
-    private boolean startSocket(InetAddress hostAddress, int port) throws IOException {
-        serverSocket = new ServerSocket(port, BACKLOG, hostAddress);
+    private boolean startSocket() throws IOException {
+        serverSocket = new ServerSocket(port, BACKLOG, hostInetAddress);
         return true;
     }
     /**
@@ -95,39 +106,17 @@ public class ChatServer {
      * Recieve a scp connection
      * @return Client's username
      */
-    private String clientConnect() throws IOException {
-        String inLine;
-        boolean isScpConnect = false;
-        String username = "";
+    private String clientConnect() throws SCPException, IOException {
+        String inLine, result = "", packet = "";
         while((inLine = in.readLine()).compareTo("SCP END") != 0) {
-            if(!isScpConnect) {
-                if(inLine.indexOf("SCP CONNECT") < 0) {
-                    throw new IOException();
-                } else {
-                    isScpConnect = true;
-                }
-            } else {
-                if(inLine.indexOf("REQUESTCREATED") > -1) {
-                    int requestTime = Integer.parseInt(inLine.substring(inLine.indexOf(" ") + 1));
-                    int timeDiff = findTimeDiff(requestTime);
-                    if(timeDiff > 5) {
-                        reject(timeDiff);
-                        break;
-                    }
-                } else if(inLine.indexOf("USERNAME") > -1) {
-                    username = inLine.substring(inLine.indexOf(" ") + 1);
-                }
-            }
+            packet += inLine + "\n";
         }
-        return username;
-    }
-    /**
-     * Find passes epoch time from specified time
-     * @param otherTime specified time
-     * @return The difference in times
-     */
-    private int findTimeDiff(int otherTime) {
-        return Math.abs((int)Instant.now().getEpochSecond() - otherTime);
+        try {
+            result = scp.parseConnect(packet);
+        } catch(TimeDiffException tde) {
+            reject(tde.getTimeDiff());
+        }
+        return result;
     }
     /**
      * Reject client for taking too long
@@ -140,21 +129,27 @@ public class ChatServer {
      * Send a SCP connect message to the client
      * @param username user specified name
      */
-    private void scpAccept(String username) {
+    private void scpAccept() {
         out.println(scp.accept(username, "127.0.0.1", 3400));
     }
-    private boolean acknowledged(String username) throws IOException {
-        String inLine;
-        boolean firstLine = true;
+    /**
+     * Check if the client has been acknowledged by the server
+     */
+    private boolean acknowledged() throws SCPException, IOException {
+        String inLine, packet = "";
         while((inLine = in.readLine()).compareTo("SCP END") != 0) {
-            if(firstLine) {
-                if(inLine.indexOf("SCP ACKNOWLEDGE") > -1) {
-                    firstLine = false;
-                } else {
-                    return false;
-                }
-            }
+            packet += inLine;
         }
-        return true;
+        return scp.parseAcknowledge(packet) == "success";
+    }
+    /**
+     * Recieve a message from the client
+     */
+    private String recieveMessage() throws SCPException, IOException {
+        String packet = "", line = "";
+        while((line = in.readLine()).compareTo("SCP END") != 0) {
+            packet += line + "\n";
+        }
+        return scp.parseMessage(packet, "127.0.0.1", 3400);
     }
 }
