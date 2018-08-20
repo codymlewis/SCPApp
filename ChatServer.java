@@ -15,14 +15,8 @@ import java.net.UnknownHostException;
  * @author Cody Lewis
  * @since 2018-08-10
  */
-public class ChatServer {
-    private SCP scp = new SCP();
+public class ChatServer extends Chat {
     private ServerSocket serverSocket;
-    private Socket cliSocket;
-    private PrintWriter out;
-    private BufferedReader in;
-    private InetAddress hostInetAddress;
-    private int port;
     private String username;
     private static final int BACKLOG = 1; // Max length for queue of messages
     public static void main(String args[]) {
@@ -36,10 +30,13 @@ public class ChatServer {
      */
     public void run(String args[]) {
         try {
-            hostInetAddress = args.length > 0 ? InetAddress.getLocalHost() : InetAddress.getLocalHost();
+            address = args.length > 0 ? InetAddress.getLocalHost() : InetAddress.getLocalHost();
             port = args.length > 1 ? Integer.parseInt(args[1]) : 3400;
+            if(port < 1024) {
+                throw new SCPException("Using a port number 1023 or lower may interrupt system operations");
+            }
             String welcomeMessage = args.length > 2 ? args[2] : "Welcome to SCP";
-            System.out.println(String.format("Starting server on %s:%d", hostInetAddress.getHostAddress(), port));
+            System.out.println(String.format("Starting server on %s:%d", address.getHostAddress(), port));
             startSocket();
             System.out.println("Started server");
             hostConnection(welcomeMessage);
@@ -60,26 +57,44 @@ public class ChatServer {
         System.out.println("Waiting for client to SCP connect");
         username = clientConnect();
         username = username.substring(1, username.length() - 1); // remove quotes
-        if(username == "") {
+        if(username == "") { // Can't have a blank username anyway
             cliSocket.close();
-            System.out.println("Rejected client for time differential greater than 5");
-        }
-        scpAccept();
-        if(acknowledged()) {
-            System.out.println(String.format("User %s has connected to SCP", username));
-            Scanner console = new Scanner(System.in);
-            String message = welcomeMessage;
-            while(true) {
-                out.println(scp.message(hostInetAddress.getHostAddress(), port, message));
-                System.out.println(String.format("%s is typing...", username));
-                System.out.print(recieveMessage());
-                System.out.print("Send a message: ");
-                message = console.next();
-                if(message == "DISCONNECT") {
-                    break;
+            System.out.println("Rejected client for time differential greater than 5, trying again");
+            hostConnection(welcomeMessage);
+        } else {
+            scpAccept();
+            if(acknowledged()) {
+                System.out.println(String.format("User %s has connected to SCP", username));
+                String message = welcomeMessage;
+                String recievedMessage;
+                boolean disconnect = false;
+                while(!disconnect) {
+                    out.println(scp.message(address.getHostAddress(), port, message));
+                    System.out.print(String.format("%s is typing...", username));
+                    recievedMessage = recieveMessage();
+                    if(recievedMessage == "DISCONNECT") {
+                        out.println(scp.acknowledge());
+                        disconnect = true;
+                        break;
+                    }
+                    System.out.print(recievedMessage);
+                    System.out.print("Send a message: ");
+                    message = textToMessage();
+                    if(message.compareTo("DISCONNECT") == 0) {
+                        out.println(scp.disconnect());
+                        if(recieveMessage().compareTo("ACKNOWLEDGE") == 0) {
+                            disconnect = true;
+                            break;
+                        } else {
+                            throw new SCPException("Client did not acknowledge disconnect");
+                        }
+                    }
                 }
+                console.close();
+            } else {
+                System.err.println("Client did not acknowledge, trying again");
+                hostConnection(welcomeMessage);
             }
-            console.close();
         }
     }
     /**
@@ -89,7 +104,7 @@ public class ChatServer {
      * @return True on successful start
      */
     private boolean startSocket() throws IOException {
-        serverSocket = new ServerSocket(port, BACKLOG, hostInetAddress);
+        serverSocket = new ServerSocket(port, BACKLOG, address);
         return true;
     }
     /**
@@ -140,16 +155,11 @@ public class ChatServer {
         while((inLine = in.readLine()).compareTo("SCP END") != 0) {
             packet += inLine;
         }
-        return scp.parseAcknowledge(packet) == "success";
-    }
-    /**
-     * Recieve a message from the client
-     */
-    private String recieveMessage() throws SCPException, IOException {
-        String packet = "", line = "";
-        while((line = in.readLine()).compareTo("SCP END") != 0) {
-            packet += line + "\n";
+        boolean result = scp.parseAcknowledge(packet);
+        if(result) {
+            return true;
+        } else {
+            throw new SCPException("SCP ACKNOWLEDGE", packet);
         }
-        return scp.parseMessage(packet, "127.0.0.1", 3400);
     }
 }

@@ -8,6 +8,7 @@ import java.io.IOException;
  *
  * @author Cody Lewis
  * @since 2018-08-10
+ * TODO Add all detail checks to the parsing
  */
 public class SCP {
     // Packet generating methods
@@ -95,7 +96,7 @@ public class SCP {
      * @param packet the connect packet
      * @return A Result object containing final status and corresponding data
      */
-    public String parseConnect(String packet) throws TimeDiffException, SCPException, IOException {
+    public String parseConnect(String packet, String address, int port) throws TimeDiffException, SCPException, IOException {
         String username = "";
         BufferedReader sstream = new BufferedReader(new StringReader(packet));
         boolean firstLine = true;
@@ -130,11 +131,11 @@ public class SCP {
     private int findTimeDiff(int otherTime) {
         return Math.abs((int)Instant.now().getEpochSecond() - otherTime);
     }
-    public String parseAcknowledge(String packet) throws SCPException {
+    public boolean parseAcknowledge(String packet) {
         if (packet.indexOf("SCP ACKNOWLEDGE") > -1) {
-            return "success";
+            return true;
         }
-        throw new SCPException("SCP ACKNOWLEDGE", packet);
+        return false;
     }
     public boolean parseAccept(String packet, String username) throws SCPException, IOException {
         boolean accept = false;
@@ -183,10 +184,10 @@ public class SCP {
         }
         return message;
     }
-    public String parseDisconnect(String packet) throws SCPException {
+    public boolean parseDisconnect(String packet) {
         if (packet.indexOf("SCP DISCONNECT") > -1) {
-            return "success";
+            return true;
         }
-        throw new SCPException("SCP DISCONNECT", packet);
+        return false;
     }
 }

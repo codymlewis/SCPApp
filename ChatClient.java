@@ -2,9 +2,10 @@ import java.util.Scanner;
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.io.InputStreamReader;
-import java.net.Socket;
-import java.net.UnknownHostException;
 import java.io.IOException;
+import java.net.Socket;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 /**
  * ChatClient.java - SENG3400A1
  * A socket based half duplex chat client
@@ -12,11 +13,7 @@ import java.io.IOException;
  * @author Cody Lewis
  * @since 2018-08-10
  */
-public class ChatClient {
-    private SCP scp = new SCP();
-    private Socket socket;
-    private PrintWriter out;
-    private BufferedReader in;
+public class ChatClient extends Chat {
     public static void main(String args[]) {
         ChatClient cc = new ChatClient();
         cc.run(args);
@@ -28,25 +25,41 @@ public class ChatClient {
      */
     public void run(String args[]) {
         try {
-            String hostName = args.length > 0 ? args[0] : "localhost";
-            int port = args.length > 1 ? Integer.parseInt(args[1]) : 3400;
-            System.out.println(String.format("Connecting to %s:%d", hostName, port));
-            connectToServer(hostName, port);
+            address = args.length > 0 ? InetAddress.getLocalHost() : InetAddress.getLocalHost();
+            port = args.length > 1 ? Integer.parseInt(args[1]) : 3400;
+            if(port < 1024) {
+                throw new SCPException("Using a port number 1023 or lower may interrupt system operations");
+            }
+            System.out.println(String.format("Connecting to %s:%d", address.getHostAddress(), port));
+            connectToServer();
             System.out.println("Connected to server");
-            Scanner console = new Scanner(System.in);
             System.out.print("Input a username: ");
-            String username = console.next();
-            scpConnect(hostName, port, username);
+            username = console.next();
+            scpConnect();
             System.out.println("Connected to SCP");
             String message;
-            while(true) {
-                System.out.print(recieveMessage());
-                System.out.print("send a message: ");
-                message = console.next();
-                if(message == "DISCONNECT") {
+            String recievedMessage;
+            boolean disconnect = false;
+            while(!disconnect) {
+                recievedMessage = recieveMessage();
+                if(recievedMessage == "DISCONNECT") {
+                    out.println(scp.acknowledge());
+                    disconnect = true;
                     break;
                 }
-                out.println(scp.message("127.0.0.1", 3400, message));
+                System.out.print(recievedMessage);
+                System.out.print("send a message: ");
+                message = textToMessage();
+                if(message.compareTo("DISCONNECT") == 0) {
+                    out.println(scp.disconnect());
+                    if(recieveMessage().compareTo("ACKNOWLEDGE") == 0) {
+                        disconnect = true;
+                        break;
+                    } else {
+                        throw new SCPException("Server did not acknowledge disconnect");
+                    }
+                }
+                out.println(scp.message(address.getHostAddress(), port, message));
                 System.out.println("Server is typing...");
             }
             console.close();
@@ -64,10 +77,10 @@ public class ChatClient {
      * @param port the port number the server is running on
      * @return true on successful connection
      */
-    private boolean connectToServer(String hostName, int port) throws UnknownHostException, IOException {
-        socket = new Socket(hostName, port);
-        out = new PrintWriter(socket.getOutputStream(), true);
-        in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+    private boolean connectToServer() throws UnknownHostException, IOException {
+        cliSocket = new Socket(address.getHostAddress(), port);
+        out = new PrintWriter(cliSocket.getOutputStream(), true);
+        in = new BufferedReader(new InputStreamReader(cliSocket.getInputStream()));
         return true;
     }
     /**
@@ -77,31 +90,23 @@ public class ChatClient {
      * @param username client specified username
      * @return true on packet send
      */
-    private boolean scpConnect(String hostName, int port, String username) throws SCPException, IOException {
-        String connectionString = scp.connect(username, hostName, port);
+    private boolean scpConnect() throws SCPException, IOException {
+        String connectionString = scp.connect(username, address.getHostAddress(), port);
         out.println(connectionString);
-        if(scpDecide(username)) {
-            scpAcknowledge(username);
+        if(scpDecide()) {
+            scpAcknowledge();
             return true;
         }
         return false;
     }
-    private boolean scpDecide(String username) throws SCPException, IOException {
+    private boolean scpDecide() throws SCPException, IOException {
         String inLine, packet = "";
         while((inLine = in.readLine()).compareTo("SCP END") != 0) {
             packet += inLine + "\n";
         }
         return scp.parseAccept(packet, username);
     }
-    private void scpAcknowledge(String username) {
-        out.println(scp.acknowledge(username, "127.0.0.1", 3400));
-    }
-    private String recieveMessage() throws SCPException, IOException {
-        String packet = "";
-        String line = "";
-        while((line = in.readLine()).compareTo("SCP END") != 0) {
-            packet += line + "\n";
-        }
-        return scp.parseMessage(packet, "127.0.0.1", 3400);
+    private void scpAcknowledge() {
+        out.println(scp.acknowledge(username, address.getHostAddress(), port));
     }
 }
