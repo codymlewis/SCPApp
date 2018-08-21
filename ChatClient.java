@@ -40,34 +40,7 @@ public class ChatClient extends Chat {
             username = console.next();
             scpConnect();
             System.out.println("Connected to SCP");
-            String message;
-            String recievedMessage;
-            boolean disconnect = false;
-            while(!disconnect) {
-                recievedMessage = recieveMessage();
-                System.out.println();
-                if(recievedMessage == "DISCONNECT") {
-                    out.println(scp.acknowledge());
-                    System.out.println("Server disconnected");
-                    disconnect = true;
-                    break;
-                }
-                System.out.print(recievedMessage);
-                System.out.print("send a message: ");
-                message = textToMessage();
-                if(message.compareTo("DISCONNECT") == 0) {
-                    out.println(scp.disconnect());
-                    if(recieveMessage().compareTo("ACKNOWLEDGE") == 0) {
-                        System.out.println("Disconnected from server");
-                        disconnect = true;
-                        break;
-                    } else {
-                        throw new SCPException("Server did not acknowledge disconnect");
-                    }
-                }
-                out.println(scp.message(address.getHostAddress(), port, message));
-                System.out.print("Server is typing...");
-            }
+            messageLoop();
             console.close();
         } catch(SCPException scpe) {
             System.err.println(scpe.getMessage());
@@ -75,6 +48,42 @@ public class ChatClient extends Chat {
             System.err.println(uhe.getMessage());
         } catch(IOException ioe) {
             System.err.println(ioe.getMessage());
+        } catch(NullPointerException npe) {
+            System.out.println("\nError: unexpected cutoff from Server, ending program");
+        }
+    }
+    /**
+     * Loop for sending and recieving messages
+     */
+    private void messageLoop() throws SCPException, IOException, NullPointerException {
+        String message;
+        String recievedMessage;
+        boolean disconnect = false;
+        while(!disconnect) {
+            recievedMessage = recieveMessage();
+            System.out.println();
+            if(recievedMessage == "DISCONNECT") {
+                out.println(scp.acknowledge());
+                System.out.println("Server disconnected");
+                disconnect = true;
+                break;
+            }
+            System.out.print(String.format("Server: %s", recievedMessage));
+            System.out.print("Send a message: ");
+            message = textToMessage();
+            if(message.compareTo("DISCONNECT") == 0) {
+                out.println(scp.disconnect());
+                if(recieveMessage().compareTo("ACKNOWLEDGE") == 0) {
+                    System.out.println("Disconnected from server");
+                    disconnect = true;
+                    break;
+                } else {
+                    throw new SCPException("Server did not acknowledge disconnect");
+                }
+            }
+            System.out.println("Waiting for message to send");
+            out.println(scp.message(address.getHostAddress(), port, message));
+            System.out.print("Server is typing...");
         }
     }
     /**
