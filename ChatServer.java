@@ -1,5 +1,3 @@
-import java.util.Scanner;
-import java.time.Instant;
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.io.InputStreamReader;
@@ -7,18 +5,22 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 /**
  * ChatServer.java - Seng3400A1
  * A socket based half duplex chat server
  *
  * @author Cody Lewis
  * @since 2018-08-10
+ * TODO make it so if one program errors, the other does not crash
  */
 public class ChatServer extends Chat {
     private ServerSocket serverSocket;
     private String username;
     private static final int BACKLOG = 1; // Max length for queue of messages
+    /**
+     * The main thread
+     * @param args command line arguments
+     */
     public static void main(String args[]) {
         ChatServer cs = new ChatServer();
         cs.run(args);
@@ -30,7 +32,7 @@ public class ChatServer extends Chat {
      */
     public void run(String args[]) {
         try {
-            address = args.length > 0 ? InetAddress.getLocalHost() : InetAddress.getLocalHost();
+            address = args.length > 0 ? InetAddress.getByName(args[0]) : InetAddress.getLocalHost();
             port = args.length > 1 ? Integer.parseInt(args[1]) : 3400;
             if(port < 1024) {
                 throw new SCPException("Using a port number 1023 or lower may interrupt system operations");
@@ -41,9 +43,9 @@ public class ChatServer extends Chat {
             System.out.println("Started server");
             hostConnection(welcomeMessage);
         } catch(SCPException scpe) {
-            System.err.println(scpe.getMessage());
+            System.err.println("Error: " + scpe.getMessage());
         } catch(IOException ioe)  {
-            System.err.println(ioe.getMessage());
+            System.err.println("Error: " + ioe.getMessage());
         }
     }
     /**
@@ -72,8 +74,10 @@ public class ChatServer extends Chat {
                     out.println(scp.message(address.getHostAddress(), port, message));
                     System.out.print(String.format("%s is typing...", username));
                     recievedMessage = recieveMessage();
+                    System.out.println();
                     if(recievedMessage == "DISCONNECT") {
                         out.println(scp.acknowledge());
+                        System.out.println("Client disconnected");
                         disconnect = true;
                         break;
                     }
@@ -84,6 +88,7 @@ public class ChatServer extends Chat {
                         out.println(scp.disconnect());
                         if(recieveMessage().compareTo("ACKNOWLEDGE") == 0) {
                             disconnect = true;
+                            System.out.println("Successfully disconnected from Client");
                             break;
                         } else {
                             throw new SCPException("Client did not acknowledge disconnect");
@@ -127,7 +132,7 @@ public class ChatServer extends Chat {
             packet += inLine + "\n";
         }
         try {
-            result = scp.parseConnect(packet);
+            result = scp.parseConnect(packet, address.getHostAddress(), port);
         } catch(TimeDiffException tde) {
             reject(tde.getTimeDiff());
         }
@@ -145,7 +150,7 @@ public class ChatServer extends Chat {
      * @param username user specified name
      */
     private void scpAccept() {
-        out.println(scp.accept(username, "127.0.0.1", 3400));
+        out.println(scp.accept(username, address.getHostAddress(), port));
     }
     /**
      * Check if the client has been acknowledged by the server
@@ -155,7 +160,7 @@ public class ChatServer extends Chat {
         while((inLine = in.readLine()).compareTo("SCP END") != 0) {
             packet += inLine;
         }
-        boolean result = scp.parseAcknowledge(packet);
+        boolean result = scp.parseAcknowledge(packet, address.getHostAddress(), port, username);
         if(result) {
             return true;
         } else {

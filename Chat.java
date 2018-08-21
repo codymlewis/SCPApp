@@ -20,6 +20,9 @@ public class Chat {
     protected InetAddress address;
     protected int port;
     protected String username;
+    /**
+     * Default Constructor
+     */
     public Chat() {
         scp = new SCP();
         console = new Scanner(System.in);
@@ -53,8 +56,11 @@ public class Chat {
         if(scp.parseAcknowledge(packet)) {
             return "ACKNOWLEDGE";
         }
-        return scp.parseMessage(packet, "127.0.0.1", 3400);
+        return scp.parseMessage(packet, address.getHostAddress(), port);
     }
+    /**
+     * Send a SCP disconnect to the other user
+     */
     protected void disconnect() {
         out.println(scp.disconnect());
     }

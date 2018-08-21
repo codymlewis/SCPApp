@@ -8,10 +8,13 @@ import java.io.IOException;
  *
  * @author Cody Lewis
  * @since 2018-08-10
- * TODO Add all detail checks to the parsing
  */
 public class SCP {
     // Packet generating methods
+    /**
+     * Default constructor
+     */
+    public SCP() {}
     /**
      * Generate the scp connect packet
      * @param username username of the sender
@@ -94,7 +97,8 @@ public class SCP {
     /**
      * Parse a SCP connect packet
      * @param packet the connect packet
-     * @return A Result object containing final status and corresponding data
+     * @param address the caller's ip address
+     * @return The client's username
      */
     public String parseConnect(String packet, String address, int port) throws TimeDiffException, SCPException, IOException {
         String username = "";
@@ -109,7 +113,17 @@ public class SCP {
                 }
                 firstLine = false;
             }
-            if(line.indexOf("REQUESTCREATED") > -1) {
+            if(line.indexOf("SERVERADDRESS") > -1)  {
+                if(line.indexOf(address) == -1) {
+                    sstream.close();
+                    throw new SCPException("SERVERADDRESS " + address, line);
+                }
+            } else if(line.indexOf("SERVERPORT") > -1) {
+                if(line.indexOf(String.format("%d", port)) == -1) {
+                    sstream.close();
+                    throw new SCPException("SERVERPORT " + port, line);
+                }
+            } else if(line.indexOf("REQUESTCREATED") > -1) {
                 int requestTime = Integer.parseInt(line.substring(line.indexOf(" ") + 1));
                 int timeDiff = findTimeDiff(requestTime);
                 if(timeDiff > 5) {
@@ -131,13 +145,64 @@ public class SCP {
     private int findTimeDiff(int otherTime) {
         return Math.abs((int)Instant.now().getEpochSecond() - otherTime);
     }
+    /**
+     * Parse a SCP acknowledge packet
+     * @param packet a SCP packet
+     * @return true on successful parse else false
+     */
     public boolean parseAcknowledge(String packet) {
         if (packet.indexOf("SCP ACKNOWLEDGE") > -1) {
             return true;
         }
         return false;
     }
-    public boolean parseAccept(String packet, String username) throws SCPException, IOException {
+    /**
+     * Parse an extended acknowledge packet
+     * @param packet a SCP packet
+     * @param address the server ip address
+     * @param port the server's port
+     * @param username the client's username
+     * @return true on successful parse
+     */
+    public boolean parseAcknowledge(String packet, String address, int port, String username) throws SCPException, IOException {
+        BufferedReader sstream = new BufferedReader(new StringReader(packet));
+        boolean firstLine = true;
+        String line;
+        while((line = sstream.readLine()) != null) {
+            if(firstLine) {
+                if(line.indexOf("SCP ACKNOWLEDGE") < 0) {
+                    sstream.close();
+                    throw new SCPException("SCP ACKNOWLEDGE", line);
+                }
+                firstLine = false;
+            }
+            if(line.indexOf("SERVERADDRESS") > -1)  {
+                if(line.indexOf(address) == -1) {
+                    sstream.close();
+                    throw new SCPException("SERVERADDRESS " + address, line);
+                }
+            } else if(line.indexOf("SERVERPORT") > -1) {
+                if(line.indexOf(String.format("%d", port)) == -1) {
+                    sstream.close();
+                    throw new SCPException("SERVERPORT " + port, line);
+                }
+            } else if(line.indexOf("USERNAME") > -1) {
+                if(line.indexOf(username) == -1) {
+                    sstream.close();
+                    throw new SCPException("USERNAME " + username, line);
+                }
+            }
+        }
+        sstream.close();
+        return true;
+    }
+    /**
+     * Parse a SCP accept packet
+     * @param packet a SCP packet
+     * @param username the Client's username
+     * @return true if successful parse else false
+     */
+    public boolean parseAccept(String packet, String username, String address, int port) throws SCPException, IOException {
         boolean accept = false;
         BufferedReader sstream = new BufferedReader(new StringReader(packet));
         String line;
@@ -151,12 +216,27 @@ public class SCP {
             }
             if(line.indexOf("USERNAME") > -1) {
                 if(line.indexOf(username) == -1) {
-                    throw new SCPException(username, line);
+                    throw new SCPException("USERNAME " + username, line);
+                }
+            } else if(line.indexOf("CLIENTADDRESS") > -1) {
+                if(line.indexOf(address) == -1) {
+                    throw new SCPException("CLIENTADDRESS " + address, line);
+                }
+            } else if(line.indexOf("CLIENTPORT") > -1) {
+                if(line.indexOf(String.format("%d", port)) == -1) {
+                    throw new SCPException("CLIENTPORT " + port, line);
                 }
             }
         }
         return true;
     }
+    /**
+     * Parse a SCP message
+     * @param packet the SCP packet
+     * @param address the caller's ip address
+     * @param port the caller's port used for the application
+     * @return a String of the Message contents
+     */
     public String parseMessage(String packet, String address, int port) throws SCPException, IOException {
         boolean firstLine = true;
         BufferedReader sstream = new BufferedReader(new StringReader(packet));
@@ -170,7 +250,7 @@ public class SCP {
                 firstLine = false;
             }
             if(line.indexOf("REMOTEADDRESS") > -1) {
-                if(line.substring(line.indexOf(" ") + 1).indexOf(address) == -1) {
+                if(line.indexOf(address) == -1) {
                     throw new SCPException("REMOTEADDRESS " + address, line);
                 }
             } else if(line.indexOf("REMOTEPORT") > -1) {
@@ -184,6 +264,11 @@ public class SCP {
         }
         return message;
     }
+    /**
+     * Parse a SCP Disconnect
+     * @param packet a SCP packet
+     * @return true if successful parse else false
+     */
     public boolean parseDisconnect(String packet) {
         if (packet.indexOf("SCP DISCONNECT") > -1) {
             return true;

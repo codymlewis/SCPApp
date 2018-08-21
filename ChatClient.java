@@ -1,4 +1,3 @@
-import java.util.Scanner;
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.io.InputStreamReader;
@@ -14,6 +13,10 @@ import java.net.UnknownHostException;
  * @since 2018-08-10
  */
 public class ChatClient extends Chat {
+    /**
+     * The main thread
+     * @param args command line arguments
+     */
     public static void main(String args[]) {
         ChatClient cc = new ChatClient();
         cc.run(args);
@@ -25,7 +28,7 @@ public class ChatClient extends Chat {
      */
     public void run(String args[]) {
         try {
-            address = args.length > 0 ? InetAddress.getLocalHost() : InetAddress.getLocalHost();
+            address = args.length > 0 ? InetAddress.getByName(args[0]) : InetAddress.getLocalHost();
             port = args.length > 1 ? Integer.parseInt(args[1]) : 3400;
             if(port < 1024) {
                 throw new SCPException("Using a port number 1023 or lower may interrupt system operations");
@@ -42,8 +45,10 @@ public class ChatClient extends Chat {
             boolean disconnect = false;
             while(!disconnect) {
                 recievedMessage = recieveMessage();
+                System.out.println();
                 if(recievedMessage == "DISCONNECT") {
                     out.println(scp.acknowledge());
+                    System.out.println("Server disconnected");
                     disconnect = true;
                     break;
                 }
@@ -53,6 +58,7 @@ public class ChatClient extends Chat {
                 if(message.compareTo("DISCONNECT") == 0) {
                     out.println(scp.disconnect());
                     if(recieveMessage().compareTo("ACKNOWLEDGE") == 0) {
+                        System.out.println("Disconnected from server");
                         disconnect = true;
                         break;
                     } else {
@@ -60,7 +66,7 @@ public class ChatClient extends Chat {
                     }
                 }
                 out.println(scp.message(address.getHostAddress(), port, message));
-                System.out.println("Server is typing...");
+                System.out.print("Server is typing...");
             }
             console.close();
         } catch(SCPException scpe) {
@@ -99,13 +105,20 @@ public class ChatClient extends Chat {
         }
         return false;
     }
+    /**
+     * Find out whether the server accepted or rejected by the server
+     * @return true if accepted, false if rejected
+     */
     private boolean scpDecide() throws SCPException, IOException {
         String inLine, packet = "";
         while((inLine = in.readLine()).compareTo("SCP END") != 0) {
             packet += inLine + "\n";
         }
-        return scp.parseAccept(packet, username);
+        return scp.parseAccept(packet, username, address.getHostAddress(), port);
     }
+    /**
+     * Send a acknowledge SCP packet to the server
+     */
     private void scpAcknowledge() {
         out.println(scp.acknowledge(username, address.getHostAddress(), port));
     }
