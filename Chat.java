@@ -27,6 +27,9 @@ public class Chat {
         scp = new SCP();
         console = new Scanner(System.in);
     }
+    protected String rules() {
+        return "Press enter twice to send a message,\nType DISCONNECT to end the chat";
+    }
     /**
      * Take an input from the users and give an out suitable to put into a message
      * @return A String of the input formatted to be embedded in a SCP message

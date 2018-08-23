@@ -66,11 +66,12 @@ public class ChatServer extends Chat {
                 scpAccept();
                 if(acknowledged()) {
                     System.out.println(String.format("User %s has connected to SCP", username));
+                    System.out.println();
                     messageLoop();
                 }
             }
         } catch(NullPointerException npe) {
-            System.out.println("\nError: unexpected cutoff from client, looking for new client");
+            System.out.println("\nError: unexpected cut-off from client, looking for new client");
         } finally {
             hostConnection();
         }
@@ -79,9 +80,10 @@ public class ChatServer extends Chat {
      * Loop for sending a recieving messages
      */
     private void messageLoop() throws SCPException, IOException {
-        String message = welcomeMessage;
+        String message = welcomeMessage + "\n" + rules() + "\n"; // send welcome message + chat rules to client
         String recievedMessage;
         boolean disconnect = false;
+        System.out.println(rules());
         while(!disconnect) {
             System.out.println("Waiting for message to send");
             out.println(scp.message(address.getHostAddress(), port, message));
