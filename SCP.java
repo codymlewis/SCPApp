@@ -105,6 +105,7 @@ public class SCP {
         BufferedReader sstream = new BufferedReader(new StringReader(packet));
         boolean firstLine = true;
         String line;
+        int lineNum = 1;
         while((line = sstream.readLine()) != null) {
             if(firstLine) {
                 if(line.indexOf("SCP CONNECT") < 0) {
@@ -112,29 +113,39 @@ public class SCP {
                     throw new SCPException("SCP CONNECT", line);
                 }
                 firstLine = false;
+            } else {
+                if(lineNum == 2)  {
+                    if(line.indexOf("SERVERADDRESS") == -1 && line.indexOf(address) == -1) {
+                        sstream.close();
+                        throw new SCPException("SERVERADDRESS " + address, line);
+                    }
+                } else if(lineNum == 3) {
+                    if(line.indexOf("SERVERPORT") == -1 && line.indexOf(String.format("%d", port)) == -1) {
+                        sstream.close();
+                        throw new SCPException("SERVERPORT " + port, line);
+                    }
+                } else if(lineNum == 4) {
+                    if(line.indexOf("REQUESTCREATED") > -1) {
+                        int requestTime = Integer.parseInt(line.substring(line.indexOf(" ") + 1));
+                        int timeDiff = findTimeDiff(requestTime);
+                        if(timeDiff > 5) {
+                            sstream.close();
+                            throw new TimeDiffException(timeDiff);
+                        }
+                    } else {
+                        sstream.close();
+                        throw new SCPException("REQUESTCREATED epochtime", line);
+                    }
+                } else if(line.indexOf("USERNAME") > -1 && lineNum == 5) {
+                    username = line.substring(line.indexOf(" ") + 1);
+                }
             }
-            if(line.indexOf("SERVERADDRESS") > -1)  {
-                if(line.indexOf(address) == -1) {
-                    sstream.close();
-                    throw new SCPException("SERVERADDRESS " + address, line);
-                }
-            } else if(line.indexOf("SERVERPORT") > -1) {
-                if(line.indexOf(String.format("%d", port)) == -1) {
-                    sstream.close();
-                    throw new SCPException("SERVERPORT " + port, line);
-                }
-            } else if(line.indexOf("REQUESTCREATED") > -1) {
-                int requestTime = Integer.parseInt(line.substring(line.indexOf(" ") + 1));
-                int timeDiff = findTimeDiff(requestTime);
-                if(timeDiff > 5) {
-                    sstream.close();
-                    throw new TimeDiffException(timeDiff);
-                }
-            } else if(line.indexOf("USERNAME") > -1) {
-                username = line.substring(line.indexOf(" ") + 1);
-            }
+            ++lineNum;
         }
         sstream.close();
+        if(lineNum < 5) {
+            throw new SCPException("SCP connect was not the right length");
+        }
         return username;
     }
     /**
@@ -168,6 +179,7 @@ public class SCP {
         BufferedReader sstream = new BufferedReader(new StringReader(packet));
         boolean firstLine = true;
         String line;
+        int lineNum = 1;
         while((line = sstream.readLine()) != null) {
             if(firstLine) {
                 if(line.indexOf("SCP ACKNOWLEDGE") < 0) {
@@ -176,22 +188,26 @@ public class SCP {
                 }
                 firstLine = false;
             }
-            if(line.indexOf("SERVERADDRESS") > -1)  {
-                if(line.indexOf(address) == -1) {
-                    sstream.close();
-                    throw new SCPException("SERVERADDRESS " + address, line);
-                }
-            } else if(line.indexOf("SERVERPORT") > -1) {
-                if(line.indexOf(String.format("%d", port)) == -1) {
-                    sstream.close();
-                    throw new SCPException("SERVERPORT " + port, line);
-                }
-            } else if(line.indexOf("USERNAME") > -1) {
-                if(line.indexOf(username) == -1) {
+            if(lineNum == 2) {
+                if(line.indexOf("USERNAME") == -1 || line.indexOf(username) == -1) {
                     sstream.close();
                     throw new SCPException("USERNAME " + username, line);
                 }
+            } else if(lineNum == 3)  {
+                if(line.indexOf("SERVERADDRESS") == -1 || line.indexOf(address) == -1) {
+                    sstream.close();
+                    throw new SCPException("SERVERADDRESS " + address, line);
+                }
+            } else if(lineNum == 4) {
+                if(line.indexOf("SERVERPORT") == -1 || line.indexOf(String.format("%d", port)) == -1) {
+                    sstream.close();
+                    throw new SCPException("SERVERPORT " + port, line);
+                }
             }
+            ++lineNum;
+        }
+        if(lineNum < 4) {
+            throw new SCPException("SCP acknowledge was not the right length");
         }
         sstream.close();
         return true;
@@ -206,6 +222,7 @@ public class SCP {
         boolean accept = false;
         BufferedReader sstream = new BufferedReader(new StringReader(packet));
         String line;
+        int lineNum = 1;
         while((line = sstream.readLine()) != null) {
             if(!accept) {
                 if(line.indexOf("SCP ACCEPT") > -1) {
@@ -214,19 +231,23 @@ public class SCP {
                     throw new SCPException("SCP ACCEPT", line);
                 }
             }
-            if(line.indexOf("USERNAME") > -1) {
-                if(line.indexOf(username) == -1) {
+            if(lineNum == 2) {
+                if(line.indexOf("USERNAME") == -1 || line.indexOf(username) == -1) {
                     throw new SCPException("USERNAME " + username, line);
                 }
-            } else if(line.indexOf("CLIENTADDRESS") > -1) {
-                if(line.indexOf(address) == -1) {
+            } else if(lineNum == 3) {
+                if(line.indexOf("CLIENTADDRESS") == -1 || line.indexOf(address) == -1) {
                     throw new SCPException("CLIENTADDRESS " + address, line);
                 }
-            } else if(line.indexOf("CLIENTPORT") > -1) {
-                if(line.indexOf(String.format("%d", port)) == -1) {
+            } else if(lineNum == 4) {
+                if(line.indexOf("CLIENTPORT") == -1 || line.indexOf(String.format("%d", port)) == -1) {
                     throw new SCPException("CLIENTPORT " + port, line);
                 }
             }
+            ++lineNum;
+        }
+        if(lineNum < 4) {
+            throw new SCPException("SCP accept was not the right length");
         }
         return true;
     }
@@ -241,6 +262,7 @@ public class SCP {
         boolean firstLine = true;
         BufferedReader sstream = new BufferedReader(new StringReader(packet));
         String line;
+        int lineNum = 1;
         String message = "";
         while((line = sstream.readLine()) != null) {
             if(firstLine) {
@@ -249,18 +271,23 @@ public class SCP {
                 }
                 firstLine = false;
             }
-            if(line.indexOf("REMOTEADDRESS") > -1) {
-                if(line.indexOf(address) == -1) {
+            if(lineNum == 2) {
+                if(line.indexOf("REMOTEADDRESS") == -1 || line.indexOf(address) == -1) {
                     throw new SCPException("REMOTEADDRESS " + address, line);
                 }
-            } else if(line.indexOf("REMOTEPORT") > -1) {
-                if(Integer.parseInt(line.substring(line.indexOf(" ") + 1)) != port) {
+            } else if(lineNum == 3) {
+                if(line.indexOf("REMOTEPORT") == -1 || Integer.parseInt(line.substring(line.indexOf(" ") + 1)) != port) {
                     throw new SCPException("REMOTEPORT " + port, line);
                 }
-            } else if(line.indexOf("MESSAGECONTENT") > -1) {
-                message = packet.substring(packet.indexOf("\n\n") + 2);
-                break;
+            } else if(lineNum == 4) {
+                if(line.indexOf("MESSAGECONTENT") > -1) {
+                    message = packet.substring(packet.indexOf("\n\n") + 2);
+                    break;
+                } else {
+                    throw new SCPException("MESSAGECONTENT", line);
+                }
             }
+            ++lineNum;
         }
         return message;
     }

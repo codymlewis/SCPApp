@@ -19,14 +19,15 @@ public class ChatClient extends Chat {
      */
     public static void main(String args[]) {
         ChatClient cc = new ChatClient();
-        cc.run(args);
-        System.exit(0);
+        int exitVal = cc.run(args);
+        System.exit(exitVal);
     }
     /**
      * Main flow of the program
      * @param args arguments sent in with the program
+     * @return an end status int
      */
-    public void run(String args[]) {
+    public int run(String args[]) {
         try {
             address = args.length > 0 ? InetAddress.getByName(args[0]) : InetAddress.getLocalHost();
             port = args.length > 1 ? Integer.parseInt(args[1]) : 3400;
@@ -37,19 +38,24 @@ public class ChatClient extends Chat {
             connectToServer();
             System.out.println("Connected to server");
             System.out.print("Input a username: ");
-            username = console.next();
+            username = console.nextLine();
             scpConnect();
             System.out.println("Connected to SCP");
             messageLoop();
             console.close();
+            return 0;
         } catch(SCPException scpe) {
             System.err.println(scpe.getMessage());
+            return errorCodes.SCPERROR.value();
         } catch(UnknownHostException uhe) {
             System.err.println(uhe.getMessage());
+            return errorCodes.UNKNOWNHOSTERROR.value();
         } catch(IOException ioe) {
             System.err.println(ioe.getMessage());
+            return errorCodes.IOERROR.value();
         } catch(NullPointerException npe) {
             System.out.println("\nError: unexpected cutoff from Server, ending program");
+            return errorCodes.NULLERROR.value();
         }
     }
     /**

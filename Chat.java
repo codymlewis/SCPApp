@@ -21,12 +21,36 @@ public class Chat {
     protected int port;
     protected String username;
     /**
+     * Enum of the various error codes returned by the classes
+     */
+    protected enum errorCodes {
+        SCPERROR(-1),
+        UNKNOWNHOSTERROR(-2),
+        IOERROR(-3),
+        NULLERROR(-4);
+
+        private final int code; // error code variable
+        /**
+         * Default constructor
+         */
+        private errorCodes(int code) { this.code = code; }
+        /**
+         * Get the error code value
+         * @return the error code of this
+         */
+        public int value() { return code; }
+    }
+    /**
      * Default Constructor
      */
     public Chat() {
         scp = new SCP();
         console = new Scanner(System.in);
     }
+    /**
+     * The chat message rules
+     * @return A String containing the rules of the chat's messaging
+     */
     protected String rules() {
         return "Press enter twice to send a message,\nType DISCONNECT to end the chat";
     }
@@ -36,13 +60,17 @@ public class Chat {
      */
     protected String textToMessage() {
         String line = console.nextLine(), message = "";
+        boolean empty = true; // Make sure an empty message is not sent
         do {
+            if(line.length() != 0) {
+                empty = false;
+            }
             if(line.compareTo("DISCONNECT") == 0) {
                 return "DISCONNECT";
             }
             message += "\n" + line;
             line = console.nextLine();
-        } while(line.length() != 0);
+        } while(empty || line.length() != 0);
         return message.substring(1); // get rid of leading \n
     }
     /**

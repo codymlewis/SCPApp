@@ -23,14 +23,15 @@ public class ChatServer extends Chat {
      */
     public static void main(String args[]) {
         ChatServer cs = new ChatServer();
-        cs.run(args);
-        System.exit(0);
+        int exitVal = cs.run(args);
+        System.exit(exitVal);
     }
     /**
      * The main flow of the program
      * @param args The arguments sent in with the program
+     * @return an end status int
      */
-    public void run(String args[]) {
+    public int run(String args[]) {
         try {
             address = args.length > 0 ? InetAddress.getByName(args[0]) : InetAddress.getLocalHost();
             port = args.length > 1 ? Integer.parseInt(args[1]) : 3400;
@@ -41,11 +42,15 @@ public class ChatServer extends Chat {
             System.out.println(String.format("Starting server on %s:%d", address.getHostAddress(), port));
             startSocket();
             System.out.println("Started server");
-            hostConnection();
+            while(true) {
+                hostConnection();
+            }
         } catch(SCPException scpe) {
             System.err.println("Error: " + scpe.getMessage());
+            return errorCodes.SCPERROR.value();
         } catch(IOException ioe)  {
             System.err.println("Error: " + ioe.getMessage());
+            return errorCodes.IOERROR.value();
         }
     }
     /**
@@ -72,8 +77,6 @@ public class ChatServer extends Chat {
             }
         } catch(NullPointerException npe) {
             System.out.println("\nError: unexpected cut-off from client, looking for new client");
-        } finally {
-            hostConnection();
         }
     }
     /**
@@ -167,7 +170,7 @@ public class ChatServer extends Chat {
     private boolean acknowledged() throws SCPException, IOException {
         String inLine, packet = "";
         while((inLine = in.readLine()).compareTo("SCP END") != 0) {
-            packet += inLine;
+            packet += inLine + "\n";
         }
         boolean result = scp.parseAcknowledge(packet, address.getHostAddress(), port, username);
         if(result) {
