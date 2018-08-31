@@ -1,5 +1,5 @@
 /**
- * TimeDiffException.java - Seng3400A1
+ * TimeDiffException.java
  * Exception for the Time Diff error from SCP parsing
  *
  * @author Cody Lewis

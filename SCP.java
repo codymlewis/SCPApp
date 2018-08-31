@@ -3,7 +3,7 @@ import java.io.BufferedReader;
 import java.io.StringReader;
 import java.io.IOException;
 /**
- * SCP.java - Seng3400A1
+ * SCP.java
  * SCP parsing/packet creating library
  *
  * @author Cody Lewis

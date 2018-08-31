@@ -1,5 +1,5 @@
 /**
- * SCPException.java - Seng3400A1
+ * SCPException.java
  * Exception for SCP related errors
  *
  * @author Cody Lewis

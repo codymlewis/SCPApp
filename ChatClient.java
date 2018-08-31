@@ -6,19 +6,20 @@ import java.net.Socket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 /**
- * ChatClient.java - SENG3400A1
+ * ChatClient.java
  * A socket based half duplex chat client
  *
  * @author Cody Lewis
  * @since 2018-08-10
  */
 public class ChatClient extends Chat {
+    public ChatClient(String title) { super(title); }
     /**
      * The main thread
      * @param args command line arguments
      */
     public static void main(String args[]) {
-        ChatClient cc = new ChatClient();
+        ChatClient cc = new ChatClient("SCP Client");
         int exitVal = cc.run(args);
         System.exit(exitVal);
     }
@@ -31,18 +32,18 @@ public class ChatClient extends Chat {
         try {
             address = args.length > 0 ? InetAddress.getByName(args[0]) : InetAddress.getLocalHost();
             port = args.length > 1 ? Integer.parseInt(args[1]) : 3400;
-            if(port < 1024) {
-                throw new SCPException("Using a port number 1023 or lower may interrupt system operations");
-            }
-            System.out.println(String.format("Connecting to %s:%d", address.getHostAddress(), port));
+            msgArea.append(String.format("Connecting to %s:%d\n", address.getHostAddress(), port));
             connectToServer();
-            System.out.println("Connected to server");
-            System.out.print("Input a username: ");
-            username = console.nextLine();
+            msgArea.append("Connected to server\n");
+            username = args.length > 2 ? args[2] : "Client";
             SCPConnect();
-            System.out.println("Connected to SCP");
-            messageLoop();
-            console.close();
+            msgArea.append("Connected to SCP\n");
+            // System.exit(0);
+            while(!disconnect) {
+                messageLoop();
+                while(recvMsg.isAlive() || !disconnect);
+            }
+            cliSocket.close();
             return 0;
         } catch(SCPException SCPe) {
             System.err.println("Error: " + SCPe.getMessage());
@@ -54,42 +55,8 @@ public class ChatClient extends Chat {
             System.err.println("Error: " + ioe.getMessage());
             return errorCodes.IOERROR.value();
         } catch(NullPointerException npe) {
-            System.out.println("\nError: unexpected cutoff from Server, ending program");
+            System.err.println("\nError: unexpected cutoff from Server, ending program");
             return errorCodes.NULLERROR.value();
-        }
-    }
-    /**
-     * Loop for sending and recieving messages
-     */
-    private void messageLoop() throws SCPException, IOException, NullPointerException {
-        String message;
-        String recievedMessage;
-        boolean disconnect = false;
-        while(!disconnect) {
-            recievedMessage = recieveMessage();
-            System.out.println();
-            if(recievedMessage == "DISCONNECT") {
-                out.println(SCP.acknowledge());
-                System.out.println("Server disconnected");
-                disconnect = true;
-                break;
-            }
-            System.out.print(String.format("Server: %s", recievedMessage));
-            System.out.print("Send a message: ");
-            message = textToMessage();
-            if(message.compareTo("DISCONNECT") == 0) {
-                out.println(SCP.disconnect());
-                if(recieveMessage().compareTo("ACKNOWLEDGE") == 0) {
-                    System.out.println("Disconnected from server");
-                    disconnect = true;
-                    break;
-                } else {
-                    throw new SCPException("Server did not acknowledge disconnect");
-                }
-            }
-            System.out.println("Waiting for message to send");
-            out.println(SCP.message(address.getHostAddress(), port, message));
-            System.out.print("Server is typing...");
         }
     }
     /**

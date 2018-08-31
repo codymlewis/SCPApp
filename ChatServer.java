@@ -6,7 +6,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.InetAddress;
 /**
- * ChatServer.java - Seng3400A1
+ * ChatServer.java
  * A socket based half duplex chat server
  *
  * @author Cody Lewis
@@ -17,12 +17,13 @@ public class ChatServer extends Chat {
     private String username;
     private String welcomeMessage;
     private static final int BACKLOG = 1; // Max length for queue of messages
+    public ChatServer(String title) { super(title); }
     /**
      * The main thread
      * @param args command line arguments
      */
     public static void main(String args[]) {
-        ChatServer cs = new ChatServer();
+        ChatServer cs = new ChatServer("SCP Server");
         int exitVal = cs.run(args);
         System.exit(exitVal);
     }
@@ -39,9 +40,9 @@ public class ChatServer extends Chat {
                 throw new SCPException("Using a port number 1023 or lower may interrupt system operations");
             }
             welcomeMessage = args.length > 2 ? args[2] : "Welcome to SCP";
-            System.out.println(String.format("Starting server on %s:%d", address.getHostAddress(), port));
+            msgArea.append(String.format("Starting server on %s:%d\n", address.getHostAddress(), port));
             startSocket();
-            System.out.println("Started server");
+            msgArea.append("Started server\n");
             while(true) {
                 hostConnection();
             }
@@ -58,60 +59,31 @@ public class ChatServer extends Chat {
      */
     private void hostConnection() throws SCPException, IOException {
         try {
-            System.out.println("Waiting for client to connect");
+            msgArea.append("Waiting for client to connect\n");
             acceptClient();
-            System.out.println("Client successfully connected");
-            System.out.println("Waiting for client to SCP connect");
+            msgArea.append("Client successfully connected\n");
+            msgArea.append("Waiting for client to SCP connect\n");
             username = clientConnect();
             username = username.substring(1, username.length() - 1); // remove quotes
             if(username == "") { // Can't have a blank username anyway
                 cliSocket.close();
-                System.out.println("Rejected client for time differential greater than 5, trying again");
+                msgArea.append("Rejected client for time differential greater than 5, trying again");
             } else {
                 SCPAccept();
                 if(acknowledged()) {
-                    System.out.println(String.format("User %s has connected to SCP", username));
-                    System.out.println();
-                    messageLoop();
+                    msgArea.append(String.format("User %s has connected to SCP\n\n", username));
+                    String message = welcomeMessage + "\n"; // send welcome message + chat rules to client
+                    msgArea.append("Waiting for message to send...\n");
+                    out.println(SCP.message(address.getHostAddress(), port, message));
+                    msgArea.append("Message Sent: " + message + "\n");
+                    while(!disconnect) {
+                        messageLoop();
+                        while(recvMsg.isAlive() || !disconnect);
+                    }
                 }
             }
         } catch(NullPointerException npe) {
-            System.out.println("\nError: unexpected cut-off from client, looking for new client");
-        }
-    }
-    /**
-     * Loop for sending a recieving messages
-     */
-    private void messageLoop() throws SCPException, IOException {
-        String message = welcomeMessage + "\n" + rules() + "\n"; // send welcome message + chat rules to client
-        String recievedMessage;
-        boolean disconnect = false;
-        System.out.println(rules());
-        while(!disconnect) { // I assume this gets sigkilled to end
-            System.out.println("Waiting for message to send");
-            out.println(SCP.message(address.getHostAddress(), port, message));
-            System.out.print(String.format("%s is typing...", username));
-            recievedMessage = recieveMessage();
-            System.out.println();
-            if(recievedMessage == "DISCONNECT") {
-                out.println(SCP.acknowledge());
-                System.out.println("Client disconnected");
-                disconnect = true;
-                break;
-            }
-            System.out.print(String.format("%s: %s", username, recievedMessage));
-            System.out.print("Send a message: ");
-            message = textToMessage();
-            if(message.compareTo("DISCONNECT") == 0) {
-                out.println(SCP.disconnect());
-                if(recieveMessage().compareTo("ACKNOWLEDGE") == 0) {
-                    disconnect = true;
-                    System.out.println("Successfully disconnected from Client");
-                    break;
-                } else {
-                    throw new SCPException("Client did not acknowledge disconnect");
-                }
-            }
+            msgArea.append("\nError: unexpected cut-off from client, looking for new client\n");
         }
     }
     /**
