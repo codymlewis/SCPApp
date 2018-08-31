@@ -39,19 +39,19 @@ public class ChatClient extends Chat {
             System.out.println("Connected to server");
             System.out.print("Input a username: ");
             username = console.nextLine();
-            scpConnect();
+            SCPConnect();
             System.out.println("Connected to SCP");
             messageLoop();
             console.close();
             return 0;
-        } catch(SCPException scpe) {
-            System.err.println(scpe.getMessage());
+        } catch(SCPException SCPe) {
+            System.err.println("Error: " + SCPe.getMessage());
             return errorCodes.SCPERROR.value();
         } catch(UnknownHostException uhe) {
-            System.err.println(uhe.getMessage());
+            System.err.println("Error: " + uhe.getMessage());
             return errorCodes.UNKNOWNHOSTERROR.value();
         } catch(IOException ioe) {
-            System.err.println(ioe.getMessage());
+            System.err.println("Error: " + ioe.getMessage());
             return errorCodes.IOERROR.value();
         } catch(NullPointerException npe) {
             System.out.println("\nError: unexpected cutoff from Server, ending program");
@@ -69,7 +69,7 @@ public class ChatClient extends Chat {
             recievedMessage = recieveMessage();
             System.out.println();
             if(recievedMessage == "DISCONNECT") {
-                out.println(scp.acknowledge());
+                out.println(SCP.acknowledge());
                 System.out.println("Server disconnected");
                 disconnect = true;
                 break;
@@ -78,7 +78,7 @@ public class ChatClient extends Chat {
             System.out.print("Send a message: ");
             message = textToMessage();
             if(message.compareTo("DISCONNECT") == 0) {
-                out.println(scp.disconnect());
+                out.println(SCP.disconnect());
                 if(recieveMessage().compareTo("ACKNOWLEDGE") == 0) {
                     System.out.println("Disconnected from server");
                     disconnect = true;
@@ -88,7 +88,7 @@ public class ChatClient extends Chat {
                 }
             }
             System.out.println("Waiting for message to send");
-            out.println(scp.message(address.getHostAddress(), port, message));
+            out.println(SCP.message(address.getHostAddress(), port, message));
             System.out.print("Server is typing...");
         }
     }
@@ -111,11 +111,11 @@ public class ChatClient extends Chat {
      * @param username client specified username
      * @return true on packet send
      */
-    private boolean scpConnect() throws SCPException, IOException {
-        String connectionString = scp.connect(username, address.getHostAddress(), port);
+    private boolean SCPConnect() throws SCPException, IOException {
+        String connectionString = SCP.connect(username, address.getHostAddress(), port);
         out.println(connectionString);
-        if(scpDecide()) {
-            scpAcknowledge();
+        if(SCPDecide()) {
+            SCPAcknowledge();
             return true;
         }
         return false;
@@ -124,17 +124,17 @@ public class ChatClient extends Chat {
      * Find out whether the server accepted or rejected by the server
      * @return true if accepted, false if rejected
      */
-    private boolean scpDecide() throws SCPException, IOException {
+    private boolean SCPDecide() throws SCPException, IOException {
         String inLine, packet = "";
         while((inLine = in.readLine()).compareTo("SCP END") != 0) {
             packet += inLine + "\n";
         }
-        return scp.parseAccept(packet, username, address.getHostAddress(), port);
+        return SCP.parseAccept(packet, username, address.getHostAddress(), port);
     }
     /**
      * Send a acknowledge SCP packet to the server
      */
-    private void scpAcknowledge() {
-        out.println(scp.acknowledge(username, address.getHostAddress(), port));
+    private void SCPAcknowledge() {
+        out.println(SCP.acknowledge(username, address.getHostAddress(), port));
     }
 }

@@ -45,8 +45,8 @@ public class ChatServer extends Chat {
             while(true) {
                 hostConnection();
             }
-        } catch(SCPException scpe) {
-            System.err.println("Error: " + scpe.getMessage());
+        } catch(SCPException SCPe) {
+            System.err.println("Error: " + SCPe.getMessage());
             return errorCodes.SCPERROR.value();
         } catch(IOException ioe)  {
             System.err.println("Error: " + ioe.getMessage());
@@ -68,7 +68,7 @@ public class ChatServer extends Chat {
                 cliSocket.close();
                 System.out.println("Rejected client for time differential greater than 5, trying again");
             } else {
-                scpAccept();
+                SCPAccept();
                 if(acknowledged()) {
                     System.out.println(String.format("User %s has connected to SCP", username));
                     System.out.println();
@@ -87,14 +87,14 @@ public class ChatServer extends Chat {
         String recievedMessage;
         boolean disconnect = false;
         System.out.println(rules());
-        while(!disconnect) {
+        while(!disconnect) { // I assume this gets sigkilled to end
             System.out.println("Waiting for message to send");
-            out.println(scp.message(address.getHostAddress(), port, message));
+            out.println(SCP.message(address.getHostAddress(), port, message));
             System.out.print(String.format("%s is typing...", username));
             recievedMessage = recieveMessage();
             System.out.println();
             if(recievedMessage == "DISCONNECT") {
-                out.println(scp.acknowledge());
+                out.println(SCP.acknowledge());
                 System.out.println("Client disconnected");
                 disconnect = true;
                 break;
@@ -103,7 +103,7 @@ public class ChatServer extends Chat {
             System.out.print("Send a message: ");
             message = textToMessage();
             if(message.compareTo("DISCONNECT") == 0) {
-                out.println(scp.disconnect());
+                out.println(SCP.disconnect());
                 if(recieveMessage().compareTo("ACKNOWLEDGE") == 0) {
                     disconnect = true;
                     System.out.println("Successfully disconnected from Client");
@@ -135,7 +135,7 @@ public class ChatServer extends Chat {
         return true;
     }
     /**
-     * Recieve a scp connection
+     * Recieve a SCP connection
      * @return Client's username
      */
     private String clientConnect() throws SCPException, IOException {
@@ -144,7 +144,7 @@ public class ChatServer extends Chat {
             packet += inLine + "\n";
         }
         try {
-            result = scp.parseConnect(packet, address.getHostAddress(), port);
+            result = SCP.parseConnect(packet, address.getHostAddress(), port);
         } catch(TimeDiffException tde) {
             reject(tde.getTimeDiff());
         }
@@ -155,14 +155,14 @@ public class ChatServer extends Chat {
      * @param timeDiff Difference in time of client request to server processing it
      */
     private void reject(int timeDiff) {
-        out.println(scp.reject(timeDiff, cliSocket.getLocalAddress().getHostAddress()));
+        out.println(SCP.reject(timeDiff, cliSocket.getLocalAddress().getHostAddress()));
     }
     /**
      * Send a SCP connect message to the client
      * @param username user specified name
      */
-    private void scpAccept() {
-        out.println(scp.accept(username, address.getHostAddress(), port));
+    private void SCPAccept() {
+        out.println(SCP.accept(username, address.getHostAddress(), port));
     }
     /**
      * Check if the client has been acknowledged by the server
@@ -172,7 +172,7 @@ public class ChatServer extends Chat {
         while((inLine = in.readLine()).compareTo("SCP END") != 0) {
             packet += inLine + "\n";
         }
-        boolean result = scp.parseAcknowledge(packet, address.getHostAddress(), port, username);
+        boolean result = SCP.parseAcknowledge(packet, address.getHostAddress(), port, username);
         if(result) {
             return true;
         } else {

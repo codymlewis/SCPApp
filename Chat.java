@@ -12,7 +12,6 @@ import java.net.Socket;
  * @since 2018-08-19
  */
 public class Chat {
-    protected SCP scp; // Must be a class as it uses non-static variables
     protected Scanner console;
     protected PrintWriter out;
     protected BufferedReader in;
@@ -44,7 +43,6 @@ public class Chat {
      * Default Constructor
      */
     public Chat() {
-        scp = new SCP();
         console = new Scanner(System.in);
     }
     /**
@@ -81,18 +79,18 @@ public class Chat {
         while((line = in.readLine()).compareTo("SCP END") != 0) {
             packet += line + "\n";
         }
-        if(scp.parseDisconnect(packet)) {
+        if(SCP.parseDisconnect(packet)) {
             return "DISCONNECT";
         }
-        if(scp.parseAcknowledge(packet)) {
+        if(SCP.parseAcknowledge(packet)) {
             return "ACKNOWLEDGE";
         }
-        return scp.parseMessage(packet, address.getHostAddress(), port);
+        return SCP.parseMessage(packet, address.getHostAddress(), port);
     }
     /**
      * Send a SCP disconnect to the other user
      */
     protected void disconnect() {
-        out.println(scp.disconnect());
+        out.println(SCP.disconnect());
     }
 }
