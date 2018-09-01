@@ -45,6 +45,8 @@ public class ChatServer extends Chat {
             msgArea.append("Started server\n");
             while(true) {
                 hostConnection();
+                disconnect = false;
+                isRecieving = true;
             }
         } catch(SCPException SCPe) {
             System.err.println("Error: " + SCPe.getMessage());

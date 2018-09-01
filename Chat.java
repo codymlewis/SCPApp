@@ -7,6 +7,7 @@ import java.net.Socket;
 import java.util.concurrent.*;
 import java.awt.*;
 import java.awt.event.*;
+import javax.swing.*;
 /**
  * Chat.java
  * Shared functions and variables between ChatServer and ChatClient
@@ -14,7 +15,7 @@ import java.awt.event.*;
  * @author Cody Lewis
  * @since 2018-08-19
  */
-public class Chat extends Frame {
+public class Chat extends JFrame {
     protected PrintWriter out;
     protected BufferedReader in;
     protected Socket cliSocket;
@@ -22,11 +23,11 @@ public class Chat extends Frame {
     protected int port;
     protected String username;
     public static final long serialVersionUID = 1L;
-    protected TextArea msgArea;
-    protected TextField msgField;
+    protected JTextArea msgArea;
+    protected JTextField msgField;
     protected boolean disconnect;
     protected Thread recvMsg;
-    private boolean isRecieving;
+    protected boolean isRecieving;
     /**
      * Enum of the various error codes returned by the classes
      */
@@ -55,20 +56,20 @@ public class Chat extends Frame {
         disconnect = false;
         isRecieving = true;
         setLayout(new FlowLayout());
-        msgArea = new TextArea(); // use append(String str) to add messages
+        msgArea = new JTextArea(20, 55); // use append(String str) to add messages
         add(msgArea);
-        Label lbl = new Label("Message: ");
+        JLabel lbl = new JLabel("Message: ");
         add(lbl);
-        msgField = new TextField(30);
+        msgField = new JTextField(30);
         add(msgField);
-        Button msgBtn = new Button("Send");
+        JButton msgBtn = new JButton("Send");
         add(msgBtn);
         msgBtn.addActionListener(new Send());
-        Button exitBtn = new Button("Exit");
+        JButton exitBtn = new JButton("Disconnect");
         add(exitBtn);
         exitBtn.addActionListener(new Exit());
         setTitle(title);
-        setSize(500, 250);
+        setSize(700, 375);
         setVisible(true);
     }
     private class Send implements ActionListener {
@@ -92,7 +93,9 @@ public class Chat extends Frame {
                     if(recievedMessage == "DISCONNECT") {
                         out.println(SCP.acknowledge());
                         msgArea.append("Other user disconnected\n");
+                        recvMsg.interrupt();
                         disconnect = true;
+                        isRecieving = false;
                     } else {
                         msgArea.append(String.format("%s: %s\n", uname, recievedMessage));
                     }
@@ -128,8 +131,7 @@ public class Chat extends Frame {
         @Override
         public void actionPerformed(ActionEvent evt) {
             try {
-                // out.println(SCP.disconnect());
-                disconnect(); // server side disconnects don't quite work
+                disconnect();
                 isRecieving = false;
                 recvMsg.interrupt();
                 disconnect = true;

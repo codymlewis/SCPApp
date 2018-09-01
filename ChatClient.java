@@ -38,7 +38,6 @@ public class ChatClient extends Chat {
             username = args.length > 2 ? args[2] : "Client";
             SCPConnect();
             msgArea.append("Connected to SCP\n");
-            // System.exit(0);
             while(!disconnect) {
                 messageLoop();
                 while(recvMsg.isAlive() || !disconnect);
