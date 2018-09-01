@@ -42,7 +42,6 @@ public class ChatClient extends Chat {
                 messageLoop();
                 while(recvMsg.isAlive() || !disconnect);
             }
-            cliSocket.close();
             return 0;
         } catch(SCPException SCPe) {
             System.err.println("Error: " + SCPe.getMessage());

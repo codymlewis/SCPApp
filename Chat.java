@@ -4,10 +4,17 @@ import java.io.PrintWriter;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.util.concurrent.*;
-import java.awt.*;
-import java.awt.event.*;
-import javax.swing.*;
+import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import javax.swing.JFrame;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JScrollPane;
+import javax.swing.ScrollPaneConstants;
+import javax.swing.text.DefaultCaret;
 /**
  * Chat.java
  * Shared functions and variables between ChatServer and ChatClient
@@ -53,15 +60,24 @@ public class Chat extends JFrame {
      * Input Constructor
      */
     public Chat(String title) {
+        // Some sentinal values
         disconnect = false;
         isRecieving = true;
+
+        // Construct the GUI
         setLayout(new FlowLayout());
-        msgArea = new JTextArea(20, 55); // use append(String str) to add messages
-        add(msgArea);
+        msgArea = new JTextArea(20, 55);
+        // Make the text area have scrollback and auto scroll with text updates
+        JScrollPane msgAScrollPane = new JScrollPane(msgArea);
+        msgAScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        DefaultCaret caret = (DefaultCaret) msgArea.getCaret();
+        caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
+        add(msgAScrollPane);
         JLabel lbl = new JLabel("Message: ");
         add(lbl);
         msgField = new JTextField(30);
         add(msgField);
+        // Some buttons with actions
         JButton msgBtn = new JButton("Send");
         add(msgBtn);
         msgBtn.addActionListener(new Send());
@@ -72,19 +88,26 @@ public class Chat extends JFrame {
         setSize(700, 375);
         setVisible(true);
     }
+    /**
+     * Message sending action
+     */
     private class Send implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent evt) {
-            try {
-                String message = textToMessage();
-                msgArea.append("Waiting for message to send...\n");
-                out.println(SCP.message(address.getHostAddress(), port, message));
-                msgArea.append("Message Sent: " + message + "\n");
-            } catch(Exception e) {}
+            String message = textToMessage();
+            msgArea.append("Waiting for message to send...\n");
+            out.println(SCP.message(address.getHostAddress(), port, message));
+            msgArea.append("Message Sent: " + message + "\n");
         }
     }
+    /**
+     * Message recieving thread
+     */
     protected class Recieve implements Runnable {
         private String uname;
+        /**
+         * Input constructor
+         */
         public Recieve(String uname) { this.uname = uname; }
         public void run() {
             try {
@@ -96,11 +119,22 @@ public class Chat extends JFrame {
                         recvMsg.interrupt();
                         disconnect = true;
                         isRecieving = false;
+                    } else if(recievedMessage == "ACKNOWLEDGE") {
+                        msgArea.append("Successfully disconnected\n");
                     } else {
                         msgArea.append(String.format("%s: %s\n", uname, recievedMessage));
                     }
                 }
-            } catch(Exception e) {}
+            } catch(SCPException SCPe) {
+                System.err.println("Error: " + SCPe.getMessage());
+            } catch(IOException ioe) {
+                System.err.println("Error: " + ioe.getMessage());
+            } catch(NullPointerException npe) {
+                msgArea.append("\nUnexpected cut-off from other user\n");
+                recvMsg.interrupt();
+                disconnect = true;
+                isRecieving = false;
+            }
         }
     }
     /**
@@ -127,20 +161,28 @@ public class Chat extends JFrame {
         }
         return SCP.parseMessage(packet, address.getHostAddress(), port);
     }
+    /**
+     * Disconnection event handler
+     */
     private class Exit implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent evt) {
             try {
-                disconnect();
-                isRecieving = false;
                 recvMsg.interrupt();
+                isRecieving = false;
                 disconnect = true;
-                if(recieveMessage().compareTo("ACKNOWLEDGE") == 0) { // this seems to be the problem
+                out.println(SCP.disconnect());
+                String message = recieveMessage();
+                if(message.compareTo("ACKNOWLEDGE") == 0) {
                     msgArea.append("Successfully disconnected\n");
                 } else {
-                    throw new SCPException("Client did not acknowledge disconnect");
+                    throw new SCPException("Other user did not acknowledge disconnect");
                 }
-            } catch(Exception e) { }
+            } catch(SCPException SCPe) {
+                System.err.println(SCPe.getMessage() + "\n");
+            } catch(IOException ioe) {
+                System.err.println("Error: " + ioe.getMessage());
+            }
         }
     }
     /**
@@ -151,11 +193,5 @@ public class Chat extends JFrame {
         String message = msgField.getText();
         msgField.setText("");
         return message;
-    }
-    /**
-     * Send a SCP disconnect to the other user
-     */
-    protected void disconnect() {
-        out.println(SCP.disconnect());
     }
 }
