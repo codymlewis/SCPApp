@@ -1,3 +1,4 @@
+import java.math.BigInteger;
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.io.InputStreamReader;
@@ -35,6 +36,8 @@ public class ChatClient extends Chat {
             msgArea.append(String.format("Connecting to %s:%d\n", address.getHostAddress(), port));
             connectToServer();
             msgArea.append("Connected to server\n");
+            msgArea.append("Exchanging keys with the server\n");
+            keyExchange();
             username = args.length > 2 ? args[2] : "Client";
             SCPConnect();
             msgArea.append("Connected to SCP\n");
@@ -67,6 +70,19 @@ public class ChatClient extends Chat {
         cliSocket = new Socket(address.getHostAddress(), port);
         out = new PrintWriter(cliSocket.getOutputStream(), true);
         in = new BufferedReader(new InputStreamReader(cliSocket.getInputStream()));
+        return true;
+    }
+    /**
+     * perform a diffie-hellman key exchange
+     * @return true on completion
+     */
+    private boolean keyExchange() throws IOException {
+        BigInteger prime = DH.genPrime(16);
+        out.println(prime); // send prime to server
+        BigInteger priKey = DH.genPrivateKey(prime);
+        BigInteger pubKey = DH.genPublicKey(priKey, prime);
+        out.println(pubKey);
+        sessionKey = DH.genSessionKey(new BigInteger(in.readLine()), priKey, prime);
         return true;
     }
     /**

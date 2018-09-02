@@ -1,6 +1,7 @@
 import java.util.Scanner;
 import java.io.BufferedReader;
 import java.io.PrintWriter;
+import java.math.BigInteger;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -35,6 +36,7 @@ public class Chat extends JFrame {
     protected boolean disconnect;
     protected Thread recvMsg;
     protected boolean isRecieving;
+    protected BigInteger sessionKey;
     /**
      * Enum of the various error codes returned by the classes
      */
@@ -94,10 +96,16 @@ public class Chat extends JFrame {
     private class Send implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent evt) {
-            String message = textToMessage();
-            msgArea.append("Waiting for message to send...\n");
-            out.println(SCP.message(address.getHostAddress(), port, message));
-            msgArea.append("Message Sent: " + message + "\n");
+            try {
+                String[] messages = textToMessage();
+                for(String message : messages) {
+                    msgArea.append("Waiting for message to send...\n");
+                    out.println(SCP.message(address.getHostAddress(), port, message));
+                    msgArea.append("Message Sent: " + AES.decrypt(sessionKey.toByteArray(), message) + "\n");
+                }
+            } catch(Exception e) {
+                System.err.println("Error: " + e.getMessage());
+            }
         }
     }
     /**
@@ -159,7 +167,13 @@ public class Chat extends JFrame {
         if(SCP.parseAcknowledge(packet)) {
             return "ACKNOWLEDGE";
         }
-        return SCP.parseMessage(packet, address.getHostAddress(), port);
+        String message = SCP.parseMessage(packet, address.getHostAddress(), port);
+        try {
+            return AES.decrypt(sessionKey.toByteArray(), message);
+        } catch(Exception e) {
+            System.err.println("Error: " + e.getMessage());
+            return "";
+        }
     }
     /**
      * Disconnection event handler
@@ -189,9 +203,14 @@ public class Chat extends JFrame {
      * Take an input from the users and give an out suitable to put into a message
      * @return A String of the input formatted to be embedded in a SCP message
      */
-    protected String textToMessage() {
-        String message = msgField.getText();
-        msgField.setText("");
-        return message;
+    protected String[] textToMessage() {
+        try {
+            String[] message = AES.encrypt(sessionKey.toByteArray(), msgField.getText());
+            msgField.setText("");
+            return message;
+        } catch(Exception e) {
+            System.out.println("Error: " + e.getMessage());
+            return null;
+        }
     }
 }

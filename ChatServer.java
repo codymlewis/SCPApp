@@ -1,5 +1,6 @@
 import java.io.BufferedReader;
 import java.io.PrintWriter;
+import java.math.BigInteger;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -64,6 +65,8 @@ public class ChatServer extends Chat {
             msgArea.append("Waiting for client to connect\n");
             acceptClient();
             msgArea.append("Client successfully connected\n");
+            msgArea.append("Exchanging Keys");
+            keyExchange();
             msgArea.append("Waiting for client to SCP connect\n");
             username = clientConnect();
             username = username.substring(1, username.length() - 1); // remove quotes
@@ -75,8 +78,11 @@ public class ChatServer extends Chat {
                 if(acknowledged()) {
                     msgArea.append(String.format("User %s has connected to SCP\n\n", username));
                     String message = welcomeMessage + "\n"; // send welcome message + chat rules to client
-                    msgArea.append("Waiting for message to send...\n");
-                    out.println(SCP.message(address.getHostAddress(), port, message));
+                    String[] encryptedMessage = AES.encrypt(sessionKey.toByteArray(), message);
+                    for(String em : encryptedMessage) {
+                        msgArea.append("Waiting for message to send...\n");
+                        out.println(SCP.message(address.getHostAddress(), port, em));
+                    }
                     msgArea.append("Message Sent: " + message + "\n");
                     while(!disconnect) {
                         messageLoop();
@@ -86,6 +92,8 @@ public class ChatServer extends Chat {
             }
         } catch(NullPointerException npe) {
             msgArea.append("\nError: unexpected cut-off from client, looking for new client\n");
+        } catch(Exception e) {
+            msgArea.append("\nError: " + e.getMessage() + "\n");
         }
     }
     /**
@@ -106,6 +114,18 @@ public class ChatServer extends Chat {
         cliSocket = serverSocket.accept();
         out = new PrintWriter(cliSocket.getOutputStream(), true);
         in = new BufferedReader(new InputStreamReader(cliSocket.getInputStream()));
+        return true;
+    }
+    /**
+     * Perform a diffie-hellman key exchange
+     * @return true on completion
+     */
+    private boolean keyExchange() throws IOException {
+        BigInteger prime = new BigInteger(in.readLine());
+        BigInteger priKey = DH.genPrivateKey(prime);
+        BigInteger pubKey = DH.genPublicKey(priKey, prime);
+        sessionKey = DH.genSessionKey(new BigInteger(in.readLine()), priKey, prime);
+        out.println(pubKey);
         return true;
     }
     /**
