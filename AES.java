@@ -16,9 +16,14 @@ public class AES {
      * @param key a secret key
      * @return the hash of the secret key
      */
-    private static byte[] hashKey(byte[] key) throws Exception {
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
-        return md.digest(key);
+    private static byte[] hashKey(byte[] key) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            return md.digest(key);
+        } catch (Exception e) {
+            System.err.println("Error: " + e.getMessage());
+            return new byte[0];
+        }
     }
     /**
      * Perform AES encryption
@@ -26,20 +31,25 @@ public class AES {
      * @param message the plaintext
      * @return cipher-text of the message
      */
-    public static String[] encrypt(byte[] sessionKey, String message) throws Exception {
-        // set up cipher
-        Cipher c = Cipher.getInstance(CIPHER_ALGORITHM);
-        SecretKeySpec secret = new SecretKeySpec(hashKey(sessionKey), "AES");
-        c.init(c.ENCRYPT_MODE, secret);
-        // produce ciphertext
-        int len = message.length() / 16 + ((message.length() % 16 == 0) ? 0 : 1);
-        String[] ciphertext = new String[len];
-        String[] result = new String[len];
-        for(int i = 0; i < len; ++i) {
-            ciphertext[i] = (i + 1) * 16 > message.length() ? message.substring(i * 16) : message.substring(i * 16, (i + 1) * 16);
-            result[i] = Base64.getEncoder().encodeToString(c.doFinal(ciphertext[i].getBytes("UTF-8")));
+    public static String[] encrypt(byte[] sessionKey, String message) {
+        try {
+            // set up cipher
+            Cipher c = Cipher.getInstance(CIPHER_ALGORITHM);
+            SecretKeySpec secret = new SecretKeySpec(hashKey(sessionKey), "AES");
+            c.init(c.ENCRYPT_MODE, secret);
+            // produce ciphertext
+            int len = message.length() / 16 + ((message.length() % 16 == 0) ? 0 : 1);
+            String[] ciphertext = new String[len];
+            String[] result = new String[len];
+            for(int i = 0; i < len; ++i) {
+                ciphertext[i] = (i + 1) * 16 > message.length() ? message.substring(i * 16) : message.substring(i * 16, (i + 1) * 16);
+                result[i] = Base64.getEncoder().encodeToString(c.doFinal(ciphertext[i].getBytes("UTF-8")));
+            }
+            return result;
+        } catch(Exception e) {
+            System.err.println("Error: " + e.getMessage());
+            return new String[0];
         }
-        return result;
     }
     /**
      * Perform AES decryption
@@ -47,12 +57,17 @@ public class AES {
      * @param ciphertext some AES encrypted text
      * @return the plain-text
      */
-    public static String decrypt(byte[] sessionKey, String ciphertext) throws Exception {
-        // set up cipher
-        Cipher c = Cipher.getInstance(CIPHER_ALGORITHM);
-        SecretKeySpec secret = new SecretKeySpec(hashKey(sessionKey), "AES");
-        c.init(c.DECRYPT_MODE, secret);
-        // produce plaintext
-        return new String(c.doFinal(Base64.getDecoder().decode(ciphertext.substring(0, ciphertext.indexOf("\n") == -1 ? ciphertext.length() : ciphertext.indexOf("\n")))));
+    public static String decrypt(byte[] sessionKey, String ciphertext) {
+        try {
+            // set up cipher
+            Cipher c = Cipher.getInstance(CIPHER_ALGORITHM);
+            SecretKeySpec secret = new SecretKeySpec(hashKey(sessionKey), "AES");
+            c.init(c.DECRYPT_MODE, secret);
+            // produce plaintext
+            return new String(c.doFinal(Base64.getDecoder().decode(ciphertext.substring(0, ciphertext.indexOf("\n") == -1 ? ciphertext.length() : ciphertext.indexOf("\n")))));
+        } catch(Exception e) {
+            System.err.println("Error: " + e.getMessage());
+            return new String();
+        }
     }
 }

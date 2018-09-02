@@ -8,12 +8,13 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 /**
  * ChatClient.java
- * A socket based half duplex chat client
+ * A socket based full duplex chat client
  *
  * @author Cody Lewis
  * @since 2018-08-10
  */
 public class ChatClient extends Chat {
+    public static final long serialVersionUID = 1L;
     public ChatClient(String title) { super(title); }
     /**
      * The main thread

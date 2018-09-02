@@ -168,12 +168,7 @@ public class Chat extends JFrame {
             return "ACKNOWLEDGE";
         }
         String message = SCP.parseMessage(packet, address.getHostAddress(), port);
-        try {
-            return AES.decrypt(sessionKey.toByteArray(), message);
-        } catch(Exception e) {
-            System.err.println("Error: " + e.getMessage());
-            return "";
-        }
+        return AES.decrypt(sessionKey.toByteArray(), message);
     }
     /**
      * Disconnection event handler

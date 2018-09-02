@@ -8,12 +8,13 @@ import java.net.Socket;
 import java.net.InetAddress;
 /**
  * ChatServer.java
- * A socket based half duplex chat server
+ * A socket based full duplex chat server
  *
  * @author Cody Lewis
  * @since 2018-08-10
  */
 public class ChatServer extends Chat {
+    public static final long serialVersionUID = 1L;
     private ServerSocket serverSocket;
     private String username;
     private String welcomeMessage;
@@ -65,7 +66,7 @@ public class ChatServer extends Chat {
             msgArea.append("Waiting for client to connect\n");
             acceptClient();
             msgArea.append("Client successfully connected\n");
-            msgArea.append("Exchanging Keys");
+            msgArea.append("Exchanging Keys\n");
             keyExchange();
             msgArea.append("Waiting for client to SCP connect\n");
             username = clientConnect();
