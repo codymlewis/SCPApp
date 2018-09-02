@@ -39,6 +39,7 @@ public class ChatClient extends Chat {
             msgArea.append("Exchanging keys with the server\n");
             keyExchange();
             username = args.length > 2 ? args[2] : "Client";
+            otherUsername = "Server";
             SCPConnect();
             msgArea.append("Connected to SCP\n");
             while(!disconnect) {

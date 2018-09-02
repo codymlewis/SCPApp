@@ -30,6 +30,7 @@ public class Chat extends JFrame {
     protected InetAddress address;
     protected int port;
     protected String username;
+    protected String otherUsername;
     public static final long serialVersionUID = 1L;
     protected JTextArea msgArea;
     protected JTextField msgField;
@@ -149,8 +150,7 @@ public class Chat extends JFrame {
      * Loop for sending a recieving messages
      */
     protected void messageLoop() throws SCPException, IOException {
-        String uname = username == null ? "Client" : "Server"; // a server has null username
-        recvMsg = new Thread(new Recieve(uname), "scp");
+        recvMsg = new Thread(new Recieve(otherUsername), "scp");
         recvMsg.start();
     }
     /**

@@ -70,6 +70,7 @@ public class ChatServer extends Chat {
             msgArea.append("Waiting for client to SCP connect\n");
             username = clientConnect();
             username = username.substring(1, username.length() - 1); // remove quotes
+            otherUsername = username;
             if(username == "") { // Can't have a blank username anyway
                 cliSocket.close();
                 msgArea.append("Rejected client for time differential greater than 5, trying again");
