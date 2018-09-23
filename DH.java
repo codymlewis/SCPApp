@@ -13,11 +13,13 @@ public class DH {
      * @return a random prime with length: bitLength
      */
     public static BigInteger genPrime(int bitLength) {
-        BigInteger prime = BigInteger.probablePrime(bitLength, new SecureRandom());
+        BigInteger prime;
         byte b[] = new byte[1];
         b[0] = 2;
-        prime = prime.multiply(new BigInteger(b));
-        prime = prime.add(BigInteger.ONE);
+        BigInteger two = new BigInteger(b);
+        do {
+            prime = BigInteger.probablePrime(bitLength, new SecureRandom());
+        } while(!prime.multiply(two).add(BigInteger.ONE).isProbablePrime(5));
         return prime;
     }
     /**
