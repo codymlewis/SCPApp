@@ -1,0 +1,19 @@
+#+TITLE: SCPApp
+#+AUTHOR: Cody Lewis
+A full duplex Client-Server Socket based SCP application, with a Diffie-Hellman
+key exchange at the beginning and AES encryption over messages.
+
+** Compiling
+#+BEGIN_SRC shell
+javac *.java
+#+END_SRC
+
+** Running
+*** Server
+#+BEGIN_SRC shell
+java ChatServer
+#+END_SRC
+*** Client
+#+BEGIN_SRC shell
+java ChatClient
+#+END_SRC
